@@ -12,8 +12,16 @@ function Invoke-CustomProcess {
     .PARAMETER Impersonate
         Switch to activate impersonation of currently logged in user when running in system context.
     .PARAMETER SessionID
-        The session ID of the logged in user.
-        Defaults to the session ID of the current process.
+        The session ID to impersonate if impersonation is enabled.
+        Defaults to the session ID of the current PID (logged in user).
+    .EXAMPLE
+        Invoke-CustomProcess -Process cmd.exe -Visible -Impersonate
+    .EXAMPLE
+        $Args = @{
+            Process = "powershell.exe"
+            Arguments = "-NoProfile -NoLogo -ExecutionPolicy Bypass -Command Get-Process"
+        }
+        Invoke-CustomProcess @Args
     #>
 
     [CmdletBinding()]
@@ -35,6 +43,14 @@ function Invoke-CustomProcess {
     $LogSource = "Invoke-CustomProcess"
 
     try {
+        if ($Impersonate) {
+            # If the current scope isn't SYSTEM context when impersonating, return as function will not work
+            if (-not ($env:USERNAME -eq "$env:COMPUTERNAME$")) {
+                Write-Warning -Message "SYSTEM privileges are required to impersonate a user."
+                return $false
+            }
+        }
+
         # Paths require double backslashes to work
         $Process = $Process.Replace("\", "\\")
         $Arguments = $Arguments.Replace("\", "\\")
